@@ -35,7 +35,29 @@ class ChatClient(OpenAI):
                                 "required": ["file_path"]
                             }
                     }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "Write",
+                        "description": "Write content to a file",
+                        "parameters": {
+                            "type": "object",
+                            "required": ["file_path", "content"],
+                            "properties": {
+                                "file_path": {
+                                    "type": "string",
+                                    "description": "The path of the file to write to"
+                                },
+                                "content": {
+                                    "type": "string",
+                                    "description": "The content to write to the file"
+                                }
+                            }
+                        }
+                    }
                 }
+
             ],
         )
 
@@ -66,12 +88,24 @@ def main():
                 for tool_call in response.tool_calls:
                     func = tool_call.function
                     func_name = func.name
+                    func_args = json.loads(func.arguments)
                     if "read" in func_name.lower():
-                        func_args = json.loads(func.arguments)
                         file_name = func_args['file_path']
 
                         with open(file_name, "r") as file:
                             content = file.read()
+
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": content
+                            })
+                    if "write" in func_name.lower():
+                        file_path = func_args['file_path']
+                        file_content = func_args['content']
+
+                        with open(file_path, "w") as file:
+                            file.write(file_content)
 
                             messages.append({
                                 "role": "tool",
