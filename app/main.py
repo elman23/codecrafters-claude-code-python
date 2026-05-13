@@ -1,8 +1,5 @@
 import argparse
 import os
-import sys
-import json
-import subprocess
 
 import app.constants as const
 from app.utils import handle_read, handle_write, handle_bash
