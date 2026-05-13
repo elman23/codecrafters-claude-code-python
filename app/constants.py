@@ -1,4 +1,8 @@
-READ_FUNCTION = {
+from openai.types.chat import ChatCompletionToolParam
+from typing import Final
+
+
+READ_FUNCTION: Final[ChatCompletionToolParam] = {
     "type": "function",
     "function": {
         "name": "Read",
@@ -8,14 +12,15 @@ READ_FUNCTION = {
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "The path to the file to read"
+                    "description": "The path to the file to read",
                 }
             },
-            "required": ["file_path"]
-        }
-    }
+            "required": ["file_path"],
+        },
+    },
 }
-WRITE_FUNCTION = {
+
+WRITE_FUNCTION: Final[ChatCompletionToolParam] = {
     "type": "function",
     "function": {
         "name": "Write",
@@ -26,17 +31,22 @@ WRITE_FUNCTION = {
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "The path of the file to write to"
+                    "description": (
+                        "The path of the file to write to"
+                    ),
                 },
                 "content": {
                     "type": "string",
-                    "description": "The content to write to the file"
-                }
-            }
-        }
-    }
+                    "description": (
+                        "The content to write to the file"
+                    ),
+                },
+            },
+        },
+    },
 }
-BASH_FUNCTION = {
+
+BASH_FUNCTION: Final[ChatCompletionToolParam] = {
     "type": "function",
     "function": {
         "name": "Bash",
@@ -47,9 +57,9 @@ BASH_FUNCTION = {
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "The command to execute"
+                    "description": "The command to execute",
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 }
