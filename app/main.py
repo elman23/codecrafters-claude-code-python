@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import json
+import subprocess
 
 from openai import OpenAI
 
@@ -56,8 +57,24 @@ class ChatClient(OpenAI):
                             }
                         }
                     }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "Bash",
+                        "description": "Execute a shell command",
+                        "parameters": {
+                            "type": "object",
+                            "required": ["command"],
+                            "properties": {
+                                "command": {
+                                    "type": "string",
+                                    "description": "The command to execute"
+                                }
+                            }
+                        }
+                    }
                 }
-
             ],
         )
 
@@ -112,6 +129,18 @@ def main():
                                 "tool_call_id": tool_call.id,
                                 "content": content
                             })
+                    if "bash" in func_name.lower():
+                        command = func_args['command'].split()
+                        result = subprocess.run(
+                            command, capture_output=True, text=True)
+                        content = result.stdout
+                        if result.stderr:
+                            content = result.stderr
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": content
+                        })
             else:
                 print(response.content)
                 break
