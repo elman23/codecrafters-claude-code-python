@@ -48,11 +48,19 @@ def main() -> None:
     p.add_argument("-p", required=True)
     args = p.parse_args()
 
+    prompt = args.p
+
     if API_KEY is None:
         raise RuntimeError("OPENROUTER_API_KEY is not set")
 
     skills = scan_skills(".claude/skills")
     formatted = ""
+
+    if prompt.startswith("/"):
+        skill_name = prompt.split()[0].lstrip("/")
+        prompt = next((d["text"]
+                      for d in skills if d["name"] == skill_name), None)
+
     for skill in skills:
         formatted += f"- {skill['name']}: {skill['description']}\n"
 
@@ -63,7 +71,7 @@ def main() -> None:
         },
         {
             "role": "user",
-            "content": args.p,
+            "content": prompt,
         }
     ]
 

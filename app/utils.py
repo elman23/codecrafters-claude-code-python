@@ -90,6 +90,10 @@ def scan_skills(skills_folder: str = ".claude/skills/") -> list[dict[str, str]]:
         description = re.search(
             r"^description:\s*(.*)$", front_matter, re.MULTILINE
         ).group(1)
-        skills.append({"name": name, "description": description})
+
+        skill_text = content[match.end():].strip()
+
+        skills.append(
+            {"name": name, "description": description, "text": skill_text})
 
     return skills
