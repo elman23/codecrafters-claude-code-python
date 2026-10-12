@@ -3,7 +3,7 @@ import os
 from typing import Any
 
 import app.constants as const
-from app.utils import handle_bash, handle_read, handle_write
+from app.utils import handle_bash, handle_read, handle_write, scan_skills
 
 from openai import OpenAI
 from openai.types.chat import (
@@ -51,7 +51,16 @@ def main() -> None:
     if API_KEY is None:
         raise RuntimeError("OPENROUTER_API_KEY is not set")
 
+    skills = scan_skills(".claude/skills")
+    formatted = ""
+    for skill in skills:
+        formatted += f"- {skill['name']}: {skill['description']}\n"
+
     messages: list[ChatCompletionMessageParam] = [
+        {
+            "role": "system",
+            "content": f"You have access to the following skills:\n\n{formatted}"
+        },
         {
             "role": "user",
             "content": args.p,

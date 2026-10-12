@@ -5,6 +5,8 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from typing import Any
 import subprocess
 import json
+import os
+import re
 
 
 def handle_read(
@@ -62,3 +64,32 @@ def handle_bash(
         content = result.stderr
 
     return content
+
+
+def scan_skills(skills_folder: str = ".claude/skills/") -> list[dict[str, str]]:
+    skills = []
+
+    if not os.path.exists(skills_folder):
+        return skills
+
+    skills_list = os.listdir(skills_folder)
+    for skill in skills_list:
+        skill_file_path = f"{skills_folder}/{skill}/SKILL.md"
+        with open(skill_file_path, "r") as f:
+            content = f.read()
+
+        match = re.match(r"\A---\s*\n(.*?)\n---", content, re.DOTALL)
+
+        if not match:
+            raise ValueError("No front matter found")
+
+        front_matter = match.group(1)
+
+        name = re.search(r"^name:\s*(.*)$", front_matter,
+                         re.MULTILINE).group(1)
+        description = re.search(
+            r"^description:\s*(.*)$", front_matter, re.MULTILINE
+        ).group(1)
+        skills.append({"name": name, "description": description})
+
+    return skills
