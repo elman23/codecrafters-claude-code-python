@@ -3,7 +3,7 @@ import os
 from typing import Any
 
 import app.constants as const
-from app.utils import handle_bash, handle_read, handle_write, scan_skills
+from app.utils import handle_bash, handle_read, handle_write, scan_skills, replace_values
 
 from openai import OpenAI
 from openai.types.chat import (
@@ -58,8 +58,14 @@ def main() -> None:
 
     if prompt.startswith("/"):
         skill_name = prompt.split()[0].lstrip("/")
-        prompt = next((d["text"]
-                      for d in skills if d["name"] == skill_name), None)
+        arguments = prompt.split()[1:] or None
+        skill_text = next((d["text"]
+                           for d in skills if d["name"] == skill_name), None)
+
+        if arguments:
+            skill_text = replace_values(skill_text, arguments)
+
+        prompt = skill_text
 
     for skill in skills:
         formatted += f"- {skill['name']}: {skill['description']}\n"
