@@ -99,13 +99,16 @@ def scan_skills(skills_folder: str = ".claude/skills/") -> list[dict[str, str]]:
     return skills
 
 
-def replace_values(template: str, values: list[str]) -> str:
-    replaced = template.replace('$ARGUMENTS', ' '.join(values))
+def replace_values(templates: list[str], values: list[str]) -> list[str]:
+    retr = []
+    for template in templates:
+        replaced = template.replace('$ARGUMENTS', ' '.join(values))
 
-    replaced = re.sub(
-        r'\$(\d+)',
-        lambda m: str(values[int(m.group(1))]),
-        replaced
-    )
+        replaced = re.sub(
+            r'\$(\d+)',
+            lambda m: str(values[int(m.group(1))]),
+            replaced
+        )
+        retr.append(replaced)
 
-    return replaced
+    return retr

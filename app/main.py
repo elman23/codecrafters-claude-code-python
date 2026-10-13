@@ -57,15 +57,21 @@ def main() -> None:
     formatted = ""
 
     if prompt.startswith("/"):
-        skill_name = prompt.split()[0].lstrip("/")
-        arguments = prompt.split()[1:] or None
-        skill_text = next((d["text"]
-                           for d in skills if d["name"] == skill_name), None)
+        prompt_words = prompt.split()
+        skill_names = [x.lstrip("/")
+                       for x in prompt_words if x.startswith("/")]
+        arguments = [x for x in prompt_words if not x.startswith("/")]
+        skill_texts = [s["text"] for s in skills if s["name"] in skill_names]
 
         if arguments:
-            skill_text = replace_values(skill_text, arguments)
+            skill_texts = replace_values(skill_texts, arguments)
 
-        prompt = skill_text
+        prompt = '\n'.join(skill_texts)
+
+        # print(f"Skill names: {skill_names}")
+        # print(f"Skill texts: {skill_texts}")
+        # print(f"Skills: {skills}")
+        # print(f"Prompt: {prompt}")
 
     for skill in skills:
         formatted += f"- {skill['name']}: {skill['description']}\n"
