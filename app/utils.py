@@ -1,6 +1,7 @@
 from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
+    ChatCompletionMessageToolParam
 )
 from typing import Any
 import subprocess
@@ -9,17 +10,25 @@ import os
 import re
 
 
+import json
+from pathlib import Path
+from typing import Any
+
+
 def handle_read(
     tool_call: ChatCompletionMessageToolCall,
-    messages: list[ChatCompletionMessageParam],
-) -> None:
+    messages: list[ChatCompletionMessageToolParam],
+) -> str:
     func_args: dict[str, Any] = json.loads(
         tool_call.function.arguments
     )
 
-    file_name: str = func_args["file_path"]
+    path = Path(func_args["file_path"])
 
-    with open(file_name, "r") as file:
+    if path.is_dir():
+        path = path / "SKILL.md"
+
+    with path.open("r") as file:
         content: str = file.read()
 
     return content

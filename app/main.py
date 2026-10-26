@@ -56,22 +56,42 @@ def main() -> None:
     skills = scan_skills(".claude/skills")
     formatted = ""
 
+    new_prompt = prompt
+
     if prompt.startswith("/"):
         prompt_words = prompt.split()
-        skill_names = [x.lstrip("/")
-                       for x in prompt_words if x.startswith("/")]
-        arguments = [x for x in prompt_words if not x.startswith("/")]
-        skill_texts = [s["text"] for s in skills if s["name"] in skill_names]
+
+        skill_names = [
+            x.lstrip("/")
+            for x in prompt_words
+            if x.startswith("/")
+        ]
+
+        arguments = " ".join(
+            x for x in prompt_words if not x.startswith("/")
+        )
+
+        selected_skills = [
+            s for s in skills if s["name"] in skill_names
+        ]
+
+        new_prompt = ""
+
+        for skill in selected_skills:
+            skill_text = skill["text"]
+
+            if arguments:
+                skill_text = skill_text.replace("$ARGUMENTS", arguments)
+
+            new_prompt += (
+                f"\nSkill: {skill['name']} "
+                f"(located at .claude/skills/{skill['name']})"
+            )
+            new_prompt += "\nAlways adjust paths for scripts relative to that folder."
+            new_prompt += "\n\n" + skill_text
 
         if arguments:
-            skill_texts = replace_values(skill_texts, arguments)
-
-        prompt = '\n'.join(skill_texts)
-
-        # print(f"Skill names: {skill_names}")
-        # print(f"Skill texts: {skill_texts}")
-        # print(f"Skills: {skills}")
-        # print(f"Prompt: {prompt}")
+            new_prompt += f"\n\nArguments: {arguments}"
 
     for skill in skills:
         formatted += f"- {skill['name']}: {skill['description']}\n"
@@ -79,12 +99,12 @@ def main() -> None:
     messages: list[ChatCompletionMessageParam] = [
         {
             "role": "system",
-            "content": f"You have access to the following skills:\n\n{formatted}"
+            "content": f"You have access to the following skills:\n\n{formatted}",
         },
         {
             "role": "user",
-            "content": prompt,
-        }
+            "content": new_prompt,
+        },
     ]
 
     client = ChatClient(
