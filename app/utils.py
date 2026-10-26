@@ -1,4 +1,4 @@
-from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolParam
+from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
