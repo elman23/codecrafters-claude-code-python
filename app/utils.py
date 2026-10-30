@@ -120,3 +120,31 @@ def replace_values(templates: list[str], values: list[str]) -> list[str]:
         retr.append(replaced)
 
     return retr
+
+
+def render_skill(skill: dict[str, str], arguments: str) -> str:
+    text = skill["text"]
+    
+    if arguments:
+        text = text.replace("$ARGUMENTS", arguments)
+
+    prompt = (
+        f"Skill: {skill['name']} (located at .claude/skills/{skill['name']})\n"
+        "Always adjust paths for scripts relative to that folder.\n\n"
+        f"{text}"
+    )
+
+    return prompt
+
+
+def handle_skill(tool_call: ChatCompletionMessageToolCall, skills: list[dict[str, str]]) -> str:
+    func_args: dict[str, Any] = json.loads(tool_call.function.arguments)
+    name: str = func_args["name"].lstrip("/")
+    arguments: str = func_args.get("args", "")
+
+    for skill in skills:
+        if skill["name"] == name:
+            return render_skill(skill, arguments)
+
+    available = ", ".join(s["name"] for s in skills)
+    return f"Skills '{name}' not found. Available skills: {available}"

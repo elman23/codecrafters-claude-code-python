@@ -3,12 +3,13 @@ import os
 from typing import Any
 
 import app.constants as const
-from app.utils import handle_bash, handle_read, handle_write, scan_skills, replace_values
+from app.utils import handle_bash, handle_read, handle_write, scan_skills, replace_values, render_skill, handle_skill
 
 from openai import OpenAI
 from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionMessageParam,
+    ChatCompletionToolParam,
 )
 
 API_KEY: str | None = os.getenv("OPENROUTER_API_KEY")
@@ -26,15 +27,12 @@ class ChatClient(OpenAI):
     def call_api(
         self,
         messages: list[ChatCompletionMessageParam],
+        tools: list[ChatCompletionToolParam],
     ) -> ChatCompletionMessage:
         chat = self.chat.completions.create(
             model="anthropic/claude-haiku-4.5",
             messages=messages,
-            tools=[
-                const.READ_FUNCTION,
-                const.WRITE_FUNCTION,
-                const.BASH_FUNCTION,
-            ],
+            tools=tools,
         )
 
         if not chat.choices:
@@ -76,19 +74,8 @@ def main() -> None:
         ]
 
         new_prompt = ""
-
         for skill in selected_skills:
-            skill_text = skill["text"]
-
-            if arguments:
-                skill_text = skill_text.replace("$ARGUMENTS", arguments)
-
-            new_prompt += (
-                f"\nSkill: {skill['name']} "
-                f"(located at .claude/skills/{skill['name']})"
-            )
-            new_prompt += "\nAlways adjust paths for scripts relative to that folder."
-            new_prompt += "\n\n" + skill_text
+            new_prompt += "\n" + render_skill(skill, arguments)
 
         if arguments:
             new_prompt += f"\n\nArguments: {arguments}"
@@ -112,9 +99,19 @@ def main() -> None:
         base_url=BASE_URL,
     )
 
+    tools: list[ChatCompletionToolParam] = [
+        const.READ_FUNCTION,
+        const.WRITE_FUNCTION,
+        const.BASH_FUNCTION,
+    ]
+
+    if not prompt.startswith("/"):
+        tools.append(const.SKILL_FUNCTION)
+
     while True:
         response: ChatCompletionMessage = client.call_api(
-            messages=messages
+            messages=messages,
+            tools=tools,
         )
 
         messages.append(response)
@@ -126,12 +123,14 @@ def main() -> None:
                 content = None
                 if "read" in func_name.lower():
                     content = handle_read(tool_call, messages)
-
-                if "write" in func_name.lower():
+                elif "write" in func_name.lower():
                     content = handle_write(tool_call, messages)
-
-                if "bash" in func_name.lower():
+                elif "bash" in func_name.lower():
                     content = handle_bash(tool_call, messages)
+                elif "skill" in func_name.lower():
+                    content = handle_skill(tool_call, skills)
+                else:
+                    content = f"Unknown tool: {func_name}"
 
                 messages.append(
                     {
