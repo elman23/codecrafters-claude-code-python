@@ -67,15 +67,15 @@ BASH_FUNCTION: Final[ChatCompletionToolParam] = {
 SKILL_FUNCTION: Final[ChatCompletionToolParam] = {
     "type": "function",
     "function": {
-      "name": "Skill",
-      "description": "Load a skill's instructions into the conversation",
-      "parameters": {
-        "type": "object",
-        "required": ["name"],
-        "properties": {
-          "name": { "type": "string", "description": "The name of the skill to use" },
-          "args": { "type": "string", "description": "Optional arguments for the skill" }
-        }
-      }
-    }
-  }
+        "name": "Skill",
+        "description": "Load a skill's instructions into the conversation",
+        "parameters": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+                "name": {"type": "string", "description": "The name of the skill to use"},
+                "args": {"type": "string", "description": "Optional arguments for the skill"}
+            },
+        },
+    },
+}

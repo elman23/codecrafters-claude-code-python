@@ -1,9 +1,10 @@
 import argparse
+import json
 import os
 from typing import Any
 
 import app.constants as const
-from app.utils import handle_bash, handle_read, handle_write, scan_skills, replace_values, render_skill, handle_skill
+from app.utils import handle_bash, handle_read, handle_write, scan_skills, render_skill
 
 from openai import OpenAI
 from openai.types.chat import (
@@ -46,58 +47,59 @@ def main() -> None:
     p.add_argument("-p", required=True)
     args = p.parse_args()
 
-    prompt = args.p
-
     if API_KEY is None:
         raise RuntimeError("OPENROUTER_API_KEY is not set")
+
+    client = ChatClient(
+        api_key=API_KEY,
+        base_url=BASE_URL,
+    )
 
     skills = scan_skills(".claude/skills")
     formatted = ""
 
-    new_prompt = prompt
+    prompt = args.p
+    prompt_words = prompt.split()
 
-    if prompt.startswith("/"):
-        prompt_words = prompt.split()
+    arguments = " ".join(
+        x for x in prompt_words if not x.startswith("/")
+    )
+    skill_names = [
+        x.lstrip("/")
+        for x in prompt_words
+        if x.startswith("/")
+    ]
+    selected_skills = [
+        s for s in skills if s["name"] in skill_names
+    ]
 
-        skill_names = [
-            x.lstrip("/")
-            for x in prompt_words
-            if x.startswith("/")
-        ]
+    new_prompt = ""
 
-        arguments = " ".join(
-            x for x in prompt_words if not x.startswith("/")
-        )
+    for skill in selected_skills:
+        new_prompt += "\n" + render_skill(skill, arguments)
 
-        selected_skills = [
-            s for s in skills if s["name"] in skill_names
-        ]
+    if arguments:
+        new_prompt += f"\n\nArguments: {arguments}"
 
-        new_prompt = ""
-        for skill in selected_skills:
-            new_prompt += "\n" + render_skill(skill, arguments)
-
-        if arguments:
-            new_prompt += f"\n\nArguments: {arguments}"
+    if not new_prompt:
+        new_prompt = prompt
 
     for skill in skills:
         formatted += f"- {skill['name']}: {skill['description']}\n"
 
+    system_prompt = f"You have access to the following skills:\n\n{formatted}\n"
+    system_prompt += "If a skill matches the user's request, call the Skill tool with its name and follow the instructions it returns."
+
     messages: list[ChatCompletionMessageParam] = [
         {
             "role": "system",
-            "content": f"You have access to the following skills:\n\n{formatted}",
+            "content": system_prompt,
         },
         {
             "role": "user",
             "content": new_prompt,
         },
     ]
-
-    client = ChatClient(
-        api_key=API_KEY,
-        base_url=BASE_URL,
-    )
 
     tools: list[ChatCompletionToolParam] = [
         const.READ_FUNCTION,
@@ -108,6 +110,45 @@ def main() -> None:
     if not prompt.startswith("/"):
         tools.append(const.SKILL_FUNCTION)
 
+    response = run_agent_loop(client, messages, tools, skills)
+    print(response)
+
+
+def execute_skill_call(
+    client: ChatClient,
+    tool_call: Any,
+    skills: list[Any],
+    tools: list[ChatCompletionToolParam],
+) -> str:
+    args_json = json.loads(tool_call.function.arguments or "{}")
+    skill_name = args_json.get("command") or args_json.get(
+        "skill") or args_json.get("name")
+
+    matched_skill = next((s for s in skills if s["name"] == skill_name), None)
+
+    if not matched_skill:
+        return f"Error: Skill '{skill_name}' not found"
+
+    # Check if skill requires isolated subagent context
+    if matched_skill.get("context") == "fork":
+        subagent_prompt: list[ChatCompletionMessageParam] = [
+            {
+                "role": "user",
+                "content": matched_skill["text"],
+            }
+        ]
+        # Run isolated subagent loop without parent message history
+        return run_agent_loop(client, subagent_prompt, tools, skills)
+
+    return matched_skill["text"]
+
+
+def run_agent_loop(
+    client: ChatClient,
+    messages: list[ChatCompletionMessageParam],
+    tools: list[ChatCompletionToolParam],
+    skills: list[Any],
+) -> str:
     while True:
         response: ChatCompletionMessage = client.call_api(
             messages=messages,
@@ -128,9 +169,16 @@ def main() -> None:
                 elif "bash" in func_name.lower():
                     content = handle_bash(tool_call, messages)
                 elif "skill" in func_name.lower():
-                    content = handle_skill(tool_call, skills)
+                    content = execute_skill_call(
+                        client, tool_call, skills, tools)
                 else:
-                    content = f"Unknown tool: {func_name}"
+                    content = f"Error: Unknown tool '{func_name}'"
+
+                if content is None:
+                    content = ""
+
+                if not isinstance(content, str):
+                    content = str(content)
 
                 messages.append(
                     {
@@ -141,8 +189,7 @@ def main() -> None:
                 )
 
         else:
-            print(response.content)
-            break
+            return response.content or ""
 
 
 if __name__ == "__main__":
